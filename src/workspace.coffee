@@ -468,7 +468,7 @@ class Workspace extends Model
         when 'EACCES'
           @notificationManager.addWarning("Permission denied '#{error.path}'")
           return Promise.resolve()
-        when 'EPERM', 'EBUSY', 'ENXIO', 'EIO', 'ENOTCONN', 'UNKNOWN', 'ECONNRESET', 'EINVAL'
+        when 'EPERM', 'EBUSY', 'ENXIO', 'EIO', 'ENOTCONN', 'UNKNOWN', 'ECONNRESET', 'EINVAL', 'EMFILE', 'ENOTDIR'
           @notificationManager.addWarning("Unable to open '#{error.path ? uri}'", detail: error.message)
           return Promise.resolve()
         else
@@ -517,6 +517,12 @@ class Workspace extends Model
 
     @project.bufferForPath(filePath, options).then (buffer) =>
       @buildTextEditor(_.extend({buffer, largeFileMode}, options))
+
+  # Public: Returns a {Boolean} that is `true` if `object` is a `TextEditor`.
+  #
+  # * `object` An {Object} you want to perform the check against.
+  isTextEditor: (object) ->
+    object instanceof TextEditor
 
   # Extended: Create a new text editor.
   #
@@ -675,9 +681,15 @@ class Workspace extends Model
   destroyActivePane: ->
     @getActivePane()?.destroy()
 
-  # Destroy the active pane item or the active pane if it is empty.
-  destroyActivePaneItemOrEmptyPane: ->
-    if @getActivePaneItem()? then @destroyActivePaneItem() else @destroyActivePane()
+  # Close the active pane item, or the active pane if it is empty,
+  # or the current window if there is only the empty root pane.
+  closeActivePaneItemOrEmptyPaneOrWindow: ->
+    if @getActivePaneItem()?
+      @destroyActivePaneItem()
+    else if @getPanes().length > 1
+      @destroyActivePane()
+    else if @config.get('core.closeEmptyWindows')
+      atom.close()
 
   # Increase the editor font size by 1px.
   increaseFontSize: ->

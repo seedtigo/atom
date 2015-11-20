@@ -21,16 +21,7 @@ module.exports = ({blobStore}) ->
 
     {testRunnerPath, legacyTestRunnerPath, headless, logFile, testPaths} = getWindowLoadSettings()
 
-    if headless
-      # Override logging in headless mode so it goes to the console, regardless
-      # of the --enable-logging flag to Electron.
-      console.log = (args...) ->
-        ipc.send 'write-to-stdout', args.join(' ') + '\n'
-      console.warn = (args...) ->
-        ipc.send 'write-to-stderr', args.join(' ') + '\n'
-      console.error = (args...) ->
-        ipc.send 'write-to-stderr', args.join(' ') + '\n'
-    else
+    unless headless
       # Show window synchronously so a focusout doesn't fire on input elements
       # that are focused in the very first spec run.
       remote.getCurrentWindow().show()
@@ -58,6 +49,7 @@ module.exports = ({blobStore}) ->
     document.title = "Spec Suite"
 
     # Avoid throttling of test window by playing silence
+    # See related discussion in https://github.com/atom/atom/pull/9485
     context = new AudioContext()
     source = context.createBufferSource()
     source.connect(context.destination)
@@ -69,6 +61,7 @@ module.exports = ({blobStore}) ->
     buildAtomEnvironment = (params) ->
       params = cloneObject(params)
       params.blobStore = blobStore unless params.hasOwnProperty("blobStore")
+      params.onlyLoadBaseStyleSheets = true unless params.hasOwnProperty("onlyLoadBaseStyleSheets")
       new AtomEnvironment(params)
 
     promise = testRunner({

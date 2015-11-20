@@ -244,21 +244,19 @@ describe "AtomEnvironment", ->
       atomEnvironment.destroy()
 
   describe "::destroy()", ->
-    it "unsubscribes from all buffers", ->
-      atomEnvironment = new AtomEnvironment({applicationDelegate: atom.applicationDelegate, window, document})
-
-      waitsForPromise ->
-        atomEnvironment.workspace.open("sample.js")
-
-      runs ->
-        buffer = atomEnvironment.workspace.getActivePaneItem().buffer
-        pane = atomEnvironment.workspace.getActivePane()
-        pane.splitRight(copyActiveItem: true)
-        expect(atomEnvironment.workspace.getTextEditors().length).toBe 2
-
-        atomEnvironment.destroy()
-
-        expect(buffer.getSubscriptionCount()).toBe 0
+    it "does not throw exceptions when unsubscribing from ipc events (regression)", ->
+      configDirPath = temp.mkdirSync()
+      fakeDocument = {
+        addEventListener: ->
+        removeEventListener: ->
+        head: document.createElement('head')
+        body: document.createElement('body')
+      }
+      atomEnvironment = new AtomEnvironment({applicationDelegate: atom.applicationDelegate, window, document: fakeDocument})
+      spyOn(atomEnvironment.packages, 'getAvailablePackagePaths').andReturn []
+      atomEnvironment.startEditorWindow()
+      atomEnvironment.unloadEditorWindow()
+      atomEnvironment.destroy()
 
   describe "::openLocations(locations) (called via IPC from browser process)", ->
     beforeEach ->
